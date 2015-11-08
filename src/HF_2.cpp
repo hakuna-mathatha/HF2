@@ -44,8 +44,8 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdlib.h>
-#include <iostream>
-using namespace std;
+//#include <iostream>
+//using namespace std;
 #if defined(__APPLE__)
 #include <OpenGL/gl.h>
 #include <OpenGL/glu.h>
@@ -313,8 +313,13 @@ struct myMatrix {
 			}
 		}
 
-		delete[] matrix;
+		for (int i = 0; i < 3; i++)
+			delete[] minor[i];
 		delete[] minor;
+
+		for (int i = 0; i < 4; i++)
+			delete[] matrix[i];
+		delete[] matrix;
 		return inverse;
 	}
 
@@ -418,9 +423,9 @@ struct Vector {
 		z *= f;
 	}
 
-	void printOut() {
-		cout << "x:" << x << " y:" << y << " z:" << z << " w:" << w << endl;
-	}
+//	void printOut() {
+//		cout << "x:" << x << " y:" << y << " z:" << z << " w:" << w << endl;
+//	}
 
 	Vector operator*(const myMatrix & A) {
 		float V_a[4] = { 0, 0, 0, 0 };
@@ -497,9 +502,9 @@ const int screenWidth = 600;	// alkalmazÃ¡s ablak felbontÃ¡sa
 const int screenHeight = 600;
 Color image[screenWidth * screenHeight];	// egy alkalmazÃ¡s ablaknyi kÃ©p
 float EPSILON = 0.001;
-int MAX_DEPTH = 3;
+int MAX_DEPTH = 5;
 float PI = 3.14159265359;
-int time = 15;
+int timer =12;
 float c = 1; //m/s
 //--------------------------------------------------------
 // Material with every proterties
@@ -621,14 +626,6 @@ public:
 		inDir.Normalize();
 		Vector normVect = normalVector;
 		normVect.Normalize();
-//		cout<<"Dir"<<endl;
-//				inDir.printOut();
-//				cout<<"Norm"<<endl;
-//				normVect.printOut();
-//
-//		float cosA = fabs(normVect * inDir);
-//		cout<<cosA<<endl;
-//		cout<<endl;
 
 		return inDir - normVect * (normVect * inDir) * 2;
 	}
@@ -709,7 +706,7 @@ public:
 	Hit() {
 		t = -1;
 		intersectPoint = normalVector = Vector();
-		material = new Material();
+		material = NULL;
 		tp = 0;
 	}
 
@@ -894,18 +891,18 @@ public:
 };
 
 class Ellipsoid: Intersectable {
-//	myMatrix quadric;
+//    myMatrix quadric;
 public:
 	static int num_of_element;
 	Vector y_axis;
 	Vector r0;
 	Vector v;
-//	Ellipsoid next_element;
+//    Ellipsoid next_element;
 	Ellipsoid(Material* m) {
 		y_axis = Vector(0, 1, 0, 0);
 		material = m;
 		r0 = Vector(0, 0, 0);
-		v = Vector(0, 0, 1);
+		v = Vector(1, 0, 1);
 		quadric = myMatrix(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1);
 
 		transfom = myMatrix(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
@@ -916,89 +913,99 @@ public:
 		transfom = transformation;
 	}
 
-	Hit baseIntersect(const Ray& ray) {
-		myMatrix tr_inv = transfom.inverse();
-		Vector point = ray.startPoin * tr_inv;
-		Vector direction = ray.rayDirection * tr_inv;
-		Hit h = Hit();
-
-		Vector aa = direction;
-		Vector bb = point;
-
-		Vector a = Vector(aa.x, aa.y, aa.z, 0);
-		Vector b = Vector(bb.x, bb.y, bb.z, 1);
-
-		Vector a_11 = (a * quadric);
-		Vector c_11 = (b * quadric);
-		float a_1 = a_11 * a;
-		Vector b_11 = (b * quadric);
-		float b_1 = (b_11 * a) * 2;
-		float c_1 = c_11 * b;
-
-		double discriminant_1 = b_1 * b_1 - 4 * a_1 * c_1;
-
-		if (discriminant_1 < 0)
-			return h; // visszateres megadasa;
-
-		float sqrt_discriminant_1 = sqrt(discriminant_1);
-		//
-		float t1 = (-b_1 + sqrt_discriminant_1) / 2 / a_1;
-		float t2 = (-b_1 - sqrt_discriminant_1) / 2 / a_1;
-		//
-		if (t1 < EPSILON)
-			t1 = -EPSILON;
-		if (t2 < EPSILON)
-			t2 = -EPSILON;
-		if (t1 < 0 && t2 < 0)
-			return h;
-
-		float t;
-		if (t1 < 0)
-			return h;
-		if (t1 > 0)
-			t = t1;
-		else
-			t = t2;
-
-		Hit hit = Hit();
-		hit.material = material;
-		hit.t = t;
-		Vector intersectpoint_model = b + (a * t);
-
-		Vector transformed_back = intersectpoint_model * transfom;
-
-		myMatrix tr_inv_transp = tr_inv.Transp();
-
-		hit.intersectPoint = transformed_back;
-		hit.normalVector = calcNormalVector(intersectpoint_model);
-		//		hit.normalVector = hit.normalVector + (r0 + (v * t));
-
-		hit.normalVector = hit.normalVector * tr_inv_transp;
-
-		hit.normalVector.Normalize();
-//						hit.tp = tp - hit.t * 10;
-
-		return hit;
-
-	}
+//    float pureIntersect(const Ray& ray) {
+//
+//        float tp = ray.tp;
+//
+//        Vector startPoint = Vector(0, 0, -0.4);
+//        Vector disp = Vector(0, 0, 0.1);
+//        disp = disp * time * 0.5;
+//        disp = startPoint + disp;
+//        myMatrix displacement = myMatrix(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0,
+//                disp.x, disp.y, disp.z, 1);
+//
+//        myMatrix transfom1 = transfom; //* displacement;
+//
+//        myMatrix tr_inv = transfom1.inverse();
+//        Vector point = ray.startPoin * tr_inv;
+//        Vector direction = ray.rayDirection * tr_inv;
+//        Hit h = Hit();
+//
+//        Vector aa = direction;// * (c) - v * 0.5;
+//        Vector bb = point;// - direction * c * tp - r0;
+//
+//        Vector a = Vector(aa.x, aa.y, aa.z, 0);
+//        Vector b = Vector(bb.x, bb.y, bb.z, 1);
+//
+//        //        Vector a_11 = (direction * quadric);
+//        //        float a_1 = a_11 * direction;
+//        //        Vector b_11 = (point * quadric);
+//        //        float b_1 = (b_11 * direction) * 2;
+//        //        Vector c_11 = (point * quadric);
+//        //        float c_1 = c_11 * point;
+//
+//        Vector a_11 = (a * quadric);
+//        Vector c_11 = (b * quadric);
+//        float a_1 = a_11 * a;
+//        Vector b_11 = (b * quadric);
+//        float b_1 = (b_11 * a) * 2;
+//        float c_1 = c_11 * b;
+//
+//        double discriminant_1 = b_1 * b_1 - 4 * a_1 * c_1;
+//
+//        if (discriminant_1 < 0)
+//            return h; // visszateres megadasa;
+//
+//        float sqrt_discriminant_1 = sqrt(discriminant_1);
+//        //
+//        float t1 = (-b_1 + sqrt_discriminant_1) / 2 / a_1;
+//        float t2 = (-b_1 - sqrt_discriminant_1) / 2 / a_1;
+//        //
+//        if (t1 < EPSILON)
+//            t1 = -EPSILON;
+//        if (t2 < EPSILON)
+//            t2 = -EPSILON;
+//        if (t1 < 0 && t2 < 0)
+//            return h;
+//
+//        float t;
+//        if (t1 < 0)
+//            return h;
+//        if (t2 > 0)
+//            t = t2;
+//        else
+//            t = t1;
+//
+//    }
 
 	Hit intersect(const Ray& ray) {
-
 		float tp = ray.tp;
-		myMatrix tr_inv = transfom.inverse();
+
+		Vector startPoint = Vector(0, 0, -0.4);
+		Vector disp = Vector(0, 0, 0.1);
+		disp = disp * timer * 0.5;
+		disp = startPoint + disp;
+		myMatrix displacement = myMatrix(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0,
+				disp.x, disp.y, disp.z, 1);
+
+		myMatrix transfom1 = transfom; //* displacement;
+
+		myMatrix tr_inv = transfom1.inverse();
 		Vector point = ray.startPoin * tr_inv;
 		Vector direction = ray.rayDirection * tr_inv;
 		Hit h = Hit();
-
-//		Vector v2 = v*tr_inv;
-//		v2.Normalize();
 		Vector aa = direction * (c) - v * 0.5;
 		Vector bb = point - direction * c * tp - r0;
-//		aa=aa*tr_inv;
-//		bb=bb*tr_inv;
 
 		Vector a = Vector(aa.x, aa.y, aa.z, 0);
 		Vector b = Vector(bb.x, bb.y, bb.z, 1);
+
+//        Vector a_11 = (direction * quadric);
+//        float a_1 = a_11 * direction;
+//        Vector b_11 = (point * quadric);
+//        float b_1 = (b_11 * direction) * 2;
+//        Vector c_11 = (point * quadric);
+//        float c_1 = c_11 * point;
 
 		Vector a_11 = (a * quadric);
 		Vector c_11 = (b * quadric);
@@ -1027,48 +1034,65 @@ public:
 		float t;
 		if (t1 < 0)
 			return h;
-		if (t1 > 0)
-			t = t1;
-		else
+		if (t2 > 0)
 			t = t2;
+		else
+			t = t1;
+
+//        float t = pureIntersect(b, a);
+//        if (t < 0)
+//            return h;
+
+//        if (t > (time*0.1 / 2)) {
+//            cout<<"benn"<<endl;
+//            transfom1 = transfom;
+//            tr_inv = transfom.inverse();
+//            point = ray.startPoin * tr_inv;
+//            direction = ray.rayDirection * tr_inv;
+//            t = pureIntersect(point, direction);
+//            if (t < 0)
+//                return h;
+//        }
 
 		Hit hit = Hit();
 		hit.material = material;
-		hit.t = (t - tp);
+		hit.t = t - tp;
+//        cout<<"hit.t: "<<hit.t<<endl;
+//        cout << "t: " << t << endl;
 
-//		cout<<"tp: "<<tp<<endl;
-//		cout<<"hit.t: "<<hit.t<<endl;
-//		cout<<"t: "<<t<<endl;
-//		cout<<endl;
+		Vector disp2 = Vector(0, 0, 0.1);
 
-		if (hit.t * 10 > tp) {
-//			cout << "tp: " << tp << endl;
-//			cout << "hit.t: " << hit.t << endl;
-//			cout << "t: " << t << endl;
-//			cout << "nagyobb: " << hit.t * 10 << endl;
-//			cout << endl;
+		disp2 = disp2 * (hit.t) * 0.5;
+		disp2 = startPoint + disp2;
+		myMatrix displacement2 = myMatrix(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0,
+				disp2.x, disp2.y, disp2.z, 1);
 
-//			Hit h2 = baseIntersect(ray);
-//
-//			return h2;
-
-		}
+		myMatrix transfom2 = transfom * displacement2;
+		myMatrix tr_inv2 = transfom1.inverse();
 
 		Vector intersectpoint_model = b + (a * t);
+//        Vector intersect2 = b+(a*t);
+//        Vector intersect3 = b+(a*hit.t);
+//        cout<<"point,dir:"<<endl;
+//        intersectpoint_model.printOut();
+//        cout<<"b , a: "<<endl;
+//        intersect2.printOut();
+//        cout << endl;
 
-		Vector transformed_back = intersectpoint_model * transfom;
-//		transformed_back = transformed_back + (r0 - (v * t));
+		Vector transformed_back = intersectpoint_model * transfom1;
+//        transformed_back = transformed_back + (r0 - (v * hit.t));
 
 		myMatrix tr_inv_transp = tr_inv.Transp();
 
 		hit.intersectPoint = transformed_back;
-		hit.normalVector = calcNormalVector(intersectpoint_model);
-//		hit.normalVector = hit.normalVector + (r0 + (v * t));
-
-		hit.normalVector = hit.normalVector * tr_inv_transp;
+		hit.normalVector = calcNormalVector(intersectpoint_model)
+				* tr_inv_transp;
 
 		hit.normalVector.Normalize();
-		hit.tp = tp - hit.t * 10;
+//		if (t > tp)
+			hit.tp = tp;
+//		else
+//			hit.tp = tp - hit.t * 10;
 
 		return hit;
 	}
@@ -1111,18 +1135,14 @@ public:
 	}
 
 	Hit intersect(const Ray& ray) {
+		float tp = ray.tp;
 		Vector point = ray.startPoin;
 		Vector direction = ray.rayDirection;
 		direction.Normalize();
 		Hit h = Hit();
 
-//		Vector b_11 = (point * quadric);
-//		float b_1 = (b_11 * direction) * 2;
-//		Vector c_11 = (point * quadric);
-//		float c_1 = c_11 * point;
-
 		Vector aa = direction * (c);
-		Vector bb = point - direction * c * time - r0;
+		Vector bb = point - direction * c * tp - r0;
 
 		Vector a = Vector(aa.x, aa.y, aa.z, 0);
 		Vector b = Vector(bb.x, bb.y, bb.z, 1);
@@ -1141,8 +1161,8 @@ public:
 			return h;
 
 		Hit hit = Hit();
-//		hit.material = material;
-		hit.t = t - time;
+//        hit.material = material;
+		hit.t = t - tp;
 
 		hit.intersectPoint = b + (a * t);
 		hit.intersectPoint = hit.intersectPoint + r0;
@@ -1170,11 +1190,12 @@ public:
 				hit.material = material2;
 			}
 		}
-//		hit.intersectPoint = hit.intersectPoint+r0;
+//        hit.intersectPoint = hit.intersectPoint+r0;
 
 		hit.normalVector = calcNormalVector(hit.intersectPoint);
 		hit.normalVector.Normalize();
 		intersect_counter++;
+		hit.tp = tp - hit.t * 10;
 
 		Vector points[360];
 		float R = 0.5;
@@ -1183,16 +1204,16 @@ public:
 			float fi_rad = (PI / 180) * fi;
 			float x2 = cos(fi_rad) * R;
 			float y2 = sin(fi_rad) * R;
-			//			Vector v = Vector(center.x + x2, center.y + y2,0);
+			//            Vector v = Vector(center.x + x2, center.y + y2,0);
 			points[fi] = Vector(center.x + x2, 0, center.z + y2, 0);
-			//			glVertex2f(center.x + x2, center.y + y2);
+			//            glVertex2f(center.x + x2, center.y + y2);
 		}
 //Paraboloid helyenek kivagasa
 		for (int i = 0; i < 360; i++) {
-//			if ((fabs(hit.intersectPoint.x - points[i].x) > 0.5
-//					&& fabs(hit.intersectPoint.y - points[i].y) > 0.5)) {
-//				return hit;
-//			}
+//            if ((fabs(hit.intersectPoint.x - points[i].x) > 0.5
+//                    && fabs(hit.intersectPoint.y - points[i].y) > 0.5)) {
+//                return hit;
+//            }
 			if (hit.intersectPoint.z >= 0 && hit.intersectPoint.x >= 0
 					&& ((hit.intersectPoint.x - points[i].x) < 0
 							&& (hit.intersectPoint.z - points[i].z) < 0)) {
@@ -1236,18 +1257,19 @@ public:
 	}
 
 	Hit intersect(const Ray& ray) {
+		float tp = ray.tp;
 		Vector point = ray.startPoin;
 		Vector direction = ray.rayDirection;
 		direction.Normalize();
 		Hit h = Hit();
 
-//		Vector b_11 = (point * quadric);
-//		float b_1 = (b_11 * direction) * 2;
-//		Vector c_11 = (point * quadric);
-//		float c_1 = c_11 * point;
+//        Vector b_11 = (point * quadric);
+//        float b_1 = (b_11 * direction) * 2;
+//        Vector c_11 = (point * quadric);
+//        float c_1 = c_11 * point;
 
 		Vector aa = direction;
-		Vector bb = point - direction * c * time - r0;
+		Vector bb = point - direction * c * tp - r0;
 
 		Vector a = Vector(aa.x, aa.y, aa.z, 0);
 		Vector b = Vector(bb.x, bb.y, bb.z, 1);
@@ -1266,7 +1288,7 @@ public:
 			return h;
 
 		Hit hit = Hit();
-		hit.t = t - time;
+		hit.t = t - tp;
 		hit.intersectPoint = b + (a * t);
 		hit.intersectPoint = hit.intersectPoint + r0;
 
@@ -1296,9 +1318,9 @@ public:
 		}
 
 		hit.normalVector = calcNormalVector(hit.intersectPoint);
-//		hit.normalVector = hit.normalVector+r0;
+//        hit.normalVector = hit.normalVector+r0;
 		hit.normalVector.Normalize();
-		intersect_counter++;
+		hit.tp = tp - hit.t * 10;
 
 		return hit;
 	}
@@ -1324,18 +1346,14 @@ public:
 	}
 
 	Hit intersect(const Ray& ray) {
+		float tp = ray.tp;
 		Vector point = ray.startPoin;
 		Vector direction = ray.rayDirection;
 		direction.Normalize();
 		Hit h = Hit();
 
-//		Vector b_11 = (point * quadric);
-//		float b_1 = (b_11 * direction) * 2;
-//		Vector c_11 = (point * quadric);
-//		float c_1 = c_11 * point;
-
 		Vector aa = direction * (c);
-		Vector bb = point - direction * c * time - r0;
+		Vector bb = point - direction * c * tp - r0;
 
 		Vector a = Vector(aa.x, aa.y, aa.z, 0);
 		Vector b = Vector(bb.x, bb.y, bb.z, 1);
@@ -1354,17 +1372,17 @@ public:
 			return h;
 
 		Hit hit = Hit();
-//		hit.intersectPoint = ray.startPoin + (ray.rayDirection * t);
-//		hit.intersectPoint = hit.intersectPoint+(r0);
+//        hit.intersectPoint = ray.startPoin + (ray.rayDirection * t);
+//        hit.intersectPoint = hit.intersectPoint+(r0);
 
-		hit.t = t - time;
-		//		cout << t << endl;
-		//		cout << hit.t << endl;
-		//		cout << endl;
-		//		hit.intersectPoint = ray.startPoin + (ray.rayDirection * t);
+		hit.t = t - tp;
+		//        cout << t << endl;
+		//        cout << hit.t << endl;
+		//        cout << endl;
+		//        hit.intersectPoint = ray.startPoin + (ray.rayDirection * t);
 
 		hit.intersectPoint = b + (a * t);
-		//		hit.intersectPoint = point + (direction * t);
+		//        hit.intersectPoint = point + (direction * t);
 
 		hit.intersectPoint = hit.intersectPoint + r0;
 
@@ -1395,7 +1413,7 @@ public:
 
 		hit.normalVector = calcNormalVector(hit.intersectPoint);
 		hit.normalVector.Normalize();
-		intersect_counter++;
+		hit.tp = tp - hit.t * 10;
 
 		return hit;
 	}
@@ -1431,17 +1449,11 @@ public:
 		Vector bb = point - (direction * c * tp) - r0;
 
 		Vector a = Vector(aa.x, aa.y, aa.z, 0);
-//		a.Normalize();
 		Vector b = Vector(bb.x, bb.y, bb.z, 1);
 		Vector c_11 = (b * quadric);
 		Vector b_11 = (b * quadric);
 		float b_1 = (b_11 * a) * 2;
 		float c_1 = c_11 * b;
-
-//		Vector b_11 = (point * quadric);
-//		float b_1 = (b_11 * direction) * 2;
-//		Vector c_11 = (point * quadric);
-//		float c_1 = c_11 * point;
 
 		float t = -c_1 / b_1;
 
@@ -1454,13 +1466,14 @@ public:
 		Hit hit = Hit();
 
 		hit.t = t - tp;
-//		cout << t << endl;
-//		cout << hit.t << endl;
-//		cout << endl;
-//		hit.intersectPoint = ray.startPoin + (ray.rayDirection * t);
+
+//        cout << t << endl;
+//        cout << hit.t << endl;
+//        cout << endl;
+//        hit.intersectPoint = ray.startPoin + (ray.rayDirection * t);
 
 		hit.intersectPoint = b + (a * t);
-//		hit.intersectPoint = point + (direction * t);
+//        hit.intersectPoint = point + (direction * t);
 
 		hit.intersectPoint = hit.intersectPoint + r0;
 
@@ -1488,11 +1501,12 @@ public:
 				hit.material = material2;
 			}
 		}
-//		hit.intersectPoint=hit.intersectPoint+(r0+(v*hit.t));
+//        hit.intersectPoint=hit.intersectPoint+(r0+(v*hit.t));
 
 		hit.normalVector = calcNormalVector(hit.intersectPoint);
 		hit.normalVector.Normalize();
 		hit.tp = tp - hit.t * 10;
+
 		return hit;
 	}
 
@@ -1518,7 +1532,6 @@ public:
 
 	Hit intersect(const Ray& ray) {
 		float tp = ray.tp;
-
 		Vector point = ray.startPoin;
 		Vector direction = ray.rayDirection;
 		direction.Normalize();
@@ -1530,19 +1543,19 @@ public:
 		Vector a = Vector(aa.x, aa.y, aa.z, 0);
 		a.Normalize();
 		Vector b = Vector(bb.x, bb.y, bb.z, 1);
-//		a.printOut();
-//		b.printOut();
-//		cout<<endl;
+//        a.printOut();
+//        b.printOut();
+//        cout<<endl;
 
 		Vector c_11 = (b * quadric);
 		Vector b_11 = (b * quadric);
 		float b_1 = (b_11 * a) * 2;
 		float c_1 = c_11 * b;
 
-//		Vector b_11 = (point * quadric);
-//		float b_1 = (b_11 * direction) * 2;
-//		Vector c_11 = (point * quadric);
-//		float c_1 = c_11 * point;
+//        Vector b_11 = (point * quadric);
+//        float b_1 = (b_11 * direction) * 2;
+//        Vector c_11 = (point * quadric);
+//        float c_1 = c_11 * point;
 
 		float t = -c_1 / b_1;
 
@@ -1553,25 +1566,26 @@ public:
 			return h;
 
 		Hit hit = Hit();
-//		hit.material = material;
+//        hit.material = material;
 		hit.t = t - tp;
-//		b=b-Vector(r0.x,r0.y,r0.z,0);
-//		a=a-Vector(r0.x,r0.y,r0.z,0);
+
+//        b=b-Vector(r0.x,r0.y,r0.z,0);
+//        a=a-Vector(r0.x,r0.y,r0.z,0);
 		hit.intersectPoint = b + (a * t);
 		hit.intersectPoint = hit.intersectPoint + r0;
-//		hit.intersectPoint.printOut();
+//        hit.intersectPoint.printOut();
 
-//		hit.intersectPoint = hit.intersectPoint-Vector(r0.x,r0.y,r0.z,0);
-//		hit.intersectPoint.w=1;
+//        hit.intersectPoint = hit.intersectPoint-Vector(r0.x,r0.y,r0.z,0);
+//        hit.intersectPoint.w=1;
 
-//		b.printOut();
-//		r0.printOut();
-//		a.printOut();
-//		hit.intersectPoint.printOut();
-//		cout<<t<<endl;
-//		cout<<hit.t<<endl;
-//		cout<<endl;
-//		hit.intersectPoint = hit.intersectPoint-(r0);
+//        b.printOut();
+//        r0.printOut();
+//        a.printOut();
+//        hit.intersectPoint.printOut();
+//        cout<<t<<endl;
+//        cout<<hit.t<<endl;
+//        cout<<endl;
+//        hit.intersectPoint = hit.intersectPoint-(r0);
 
 		if (hit.intersectPoint.y < -0.501 || hit.intersectPoint.y > 0.501
 				|| hit.intersectPoint.x < -0.501
@@ -1601,6 +1615,7 @@ public:
 		hit.normalVector = hit.normalVector + r0;
 		hit.normalVector.Normalize();
 		hit.tp = tp - hit.t * 10;
+
 		return hit;
 	}
 
@@ -1623,30 +1638,31 @@ public:
 	}
 
 	Hit intersect(const Ray& ray) {
+		float tp = ray.tp;
 		Vector point = ray.startPoin;
 		Vector direction = ray.rayDirection;
 		direction.Normalize();
 		Hit h = Hit();
 
 		Vector aa = direction * (c);
-		Vector bb = point - direction * c * time - r0;
+		Vector bb = point - direction * c * tp - r0;
 
 		Vector a = Vector(aa.x, aa.y, aa.z, 0);
 		a.Normalize();
 		Vector b = Vector(bb.x, bb.y, bb.z, 1);
-		//		a.printOut();
-		//		b.printOut();
-		//		cout<<endl;
+		//        a.printOut();
+		//        b.printOut();
+		//        cout<<endl;
 
 		Vector c_11 = (b * quadric);
 		Vector b_11 = (b * quadric);
 		float b_1 = (b_11 * a) * 2;
 		float c_1 = c_11 * b;
 
-		//		Vector b_11 = (point * quadric);
-		//		float b_1 = (b_11 * direction) * 2;
-		//		Vector c_11 = (point * quadric);
-		//		float c_1 = c_11 * point;
+		//        Vector b_11 = (point * quadric);
+		//        float b_1 = (b_11 * direction) * 2;
+		//        Vector c_11 = (point * quadric);
+		//        float c_1 = c_11 * point;
 
 		float t = -c_1 / b_1;
 
@@ -1657,25 +1673,25 @@ public:
 			return h;
 
 		Hit hit = Hit();
-		//		hit.material = material;
-		hit.t = t - time;
-		//		b=b-Vector(r0.x,r0.y,r0.z,0);
-		//		a=a-Vector(r0.x,r0.y,r0.z,0);
+		//        hit.material = material;
+		hit.t = t - tp;
+		//        b=b-Vector(r0.x,r0.y,r0.z,0);
+		//        a=a-Vector(r0.x,r0.y,r0.z,0);
 		hit.intersectPoint = b + (a * t);
 		hit.intersectPoint = hit.intersectPoint + r0;
-		//		hit.intersectPoint.printOut();
+		//        hit.intersectPoint.printOut();
 
-		//		hit.intersectPoint = hit.intersectPoint-Vector(r0.x,r0.y,r0.z,0);
-		//		hit.intersectPoint.w=1;
+		//        hit.intersectPoint = hit.intersectPoint-Vector(r0.x,r0.y,r0.z,0);
+		//        hit.intersectPoint.w=1;
 
-		//		b.printOut();
-		//		r0.printOut();
-		//		a.printOut();
-		//		hit.intersectPoint.printOut();
-		//		cout<<t<<endl;
-		//		cout<<hit.t<<endl;
-		//		cout<<endl;
-		//		hit.intersectPoint = hit.intersectPoint-(r0);
+		//        b.printOut();
+		//        r0.printOut();
+		//        a.printOut();
+		//        hit.intersectPoint.printOut();
+		//        cout<<t<<endl;
+		//        cout<<hit.t<<endl;
+		//        cout<<endl;
+		//        hit.intersectPoint = hit.intersectPoint-(r0);
 
 		if (hit.intersectPoint.y < -0.501 || hit.intersectPoint.y > 0.501
 				|| hit.intersectPoint.x < -0.501
@@ -1704,7 +1720,7 @@ public:
 		hit.normalVector = calcNormalVector(hit.intersectPoint);
 		hit.normalVector = hit.normalVector + r0;
 		hit.normalVector.Normalize();
-		intersect_counter++;
+		hit.tp = tp - hit.t * 10;
 
 		return hit;
 	}
@@ -1860,34 +1876,40 @@ public:
 		float t;
 		if (t1 < 0)
 			return h;
+		if (t1 > 0)
+			t = t1;
+		else
+			t = t2;
 
-		Vector v1 = point + (direction * t1);
-		Vector v2 = point + (direction * t2);
+		Vector v1 = point + (direction * t);
+//		Vector v2 = point + (direction * t2);
 
 		myMatrix tr_inv_transp = tr_inv.Transp();
 		Hit hit = Hit();
 		hit.material = material;
 
-		if (v2.y > 0) {
-			if (v1.y > 0)
-				return h;
-			Vector transformed_back = v1 * transfom;
+//		if (v2.y > -0.5) {
+//			if (v1.y > -0.5)
+//				return h;
+		if (v1.y > 0)
+			return h;
+		Vector transformed_back = v1 * transfom;
 
-			hit.t = t1;
-			hit.intersectPoint = transformed_back;
-			hit.normalVector = calcNormalVector(v1) * tr_inv_transp;
-			hit.normalVector.Normalize();
-			hit.normalVector = hit.normalVector * (-1);
+		hit.t = t;
+		hit.intersectPoint = transformed_back;
+		hit.normalVector = calcNormalVector(v1) * tr_inv_transp;
+		hit.normalVector.Normalize();
+		hit.normalVector = hit.normalVector * (-1);
 
-		} else if (v2.y >= -1) {
-			Vector transformed_back = v2 * transfom;
-
-			hit.t = t2;
-			hit.intersectPoint = transformed_back;
-			hit.normalVector = calcNormalVector(v2) * tr_inv_transp;
-			hit.normalVector.Normalize();
-
-		}
+//		} else if (v2.y >= -1) {
+//			Vector transformed_back = v2 * transfom;
+//
+//			hit.t = t2;
+//			hit.intersectPoint = transformed_back;
+//			hit.normalVector = calcNormalVector(v2) * tr_inv_transp;
+//			hit.normalVector.Normalize();
+//
+//		}
 
 		return hit;
 	}
@@ -1931,7 +1953,7 @@ public:
 		Vector dir = p - eyePosition;
 		dir.Normalize();
 		Ray ray = Ray(eyePosition, dir);
-		ray.setTp(time);
+		ray.setTp(timer);
 		return ray;
 	}
 };
@@ -1940,10 +1962,15 @@ class LightSource {
 public:
 	Vector position;
 	Color lightRadiation;
+	Vector vl;
+	float speed;
 
-	LightSource(Vector pos, Color intens) {
+	LightSource(Vector pos, Color intens, Vector velo, float sp) {
 		position = pos;
 		lightRadiation = intens;
+		vl = velo;
+//        vl.Normalize();
+		speed = sp;
 	}
 
 	virtual Color getRadiation() {
@@ -1963,29 +1990,81 @@ public:
 	virtual ~LightSource() {
 
 	}
+	virtual Vector lampRayIntersectionPoint(float ti, Vector ri) {
+		Vector rl = position;
+		Vector ret = Vector();
+
+		float a = ((vl) * (vl)) - 1;
+		float b = (rl - ri * 2) * vl;
+		float c = 2 * ti - ti * ti + (rl * rl) - (rl * ri) * 2 + (ri * ri);
+
+		double discriminant = b * b - 4 * a * c;
+//        cout<<discriminant<<endl;
+//        (vl*speed).printOut();
+		if (discriminant < 0)
+			return ret; // visszateres megadasa;
+
+		float sqrt_discriminant = sqrt(discriminant);
+		//
+		float t1 = (-b + sqrt_discriminant) / 2 / a / 10;
+		float t2 = (-b - sqrt_discriminant) / 2 / a / 10;
+
+//        cout<<"t1: "<<t1<<endl;
+//        cout<<"t2: "<<t2<<endl;
+//        cout<<endl;
+
+//        if (t1 > EPSILON)
+//            t1 = -EPSILON;
+//        if (t2 > EPSILON)
+//            t2 = -EPSILON;
+//        if (t1 > 0 && t2 > 0)
+//            return ret;
+
+		float t;
+//        if (t1 > 0)
+//            return ret;
+//        if (t1 < 0)
+//            t = t1;
+//        else
+//            t = t1;
+
+		t = t2;
+
+//        cout<<endl;
+
+		ret = rl - vl * t;
+//        cout<<"length: "<<ret.Length()<<endl;
+//
+//        ret.printOut();
+//        cout << endl;
+		return ret;
+
+	}
 
 };
 
-class DirectionalLightSource: LightSource {
-public:
-	Vector direction;
-
-	DirectionalLightSource(Vector dir, Vector position, Color intense) :
-			LightSource(position, intense) {
-		this->direction = dir;
-	}
-
-	Vector lightDirection(Vector point) {
-
-		return direction;
-	}
-
-};
+//class DirectionalLightSource: LightSource {
+//public:
+//    Vector direction;
+//
+//    DirectionalLightSource(Vector dir, Vector position, Color intense) :
+//            LightSource(position, intense) {
+//        this->direction = dir;
+//    }
+//
+//    Vector lightDirection(Vector point) {
+//
+//        return direction;
+//    }
+//
+//};
 
 class PositionLightSource: LightSource {
+	Vector vl;
 public:
-	PositionLightSource(Vector pos, Color intens) :
-			LightSource(pos, intens) {
+	PositionLightSource(Vector pos, Color intens, Vector velo, float sp) :
+			LightSource(pos, intens, velo, sp) {
+
 	}
 
 	Vector lightDirection(Vector point) {
@@ -1994,12 +2073,12 @@ public:
 		return v;
 	}
 
-//	Color getRadiation(Vector point) {
-//		return lightRadiation / ((point - position) * (point - position));
-//	}
+//    Color getRadiation(Vector point) {
+//        return lightRadiation / ((point - position) * (point - position));
+//    }
 
 //Color getRadiation(Vector point) {
-//	return lightRadiation;
+//    return lightRadiation;
 //}
 };
 
@@ -2047,13 +2126,20 @@ public:
 
 		for (int i = 0; i < lightSources.SizeOf(); i++) {
 
+			Vector lampPosition = lightSources[i].lampRayIntersectionPoint(
+					hit.tp, hit.intersectPoint);
+			Vector lightDirNorm = lampPosition - hit.intersectPoint;
+			lightDirNorm.Normalize();
+
 			Ray shadowRay = Ray(hit.intersectPoint + hit.normalVector * (0.001),
-					lightSources[i].lightDirection(hit.intersectPoint)); //Sugar inditasa a metszespontbol a fenyforras fele
+					lightDirNorm); //Sugar inditasa a metszespontbol a fenyforras fele
 			shadowRay.setTp(hit.tp);
 			Hit shadowHit = firstIntersect(shadowRay);
-			Vector pointLightVector = lightSources[i].position
-					- hit.intersectPoint;
+//			Vector pointLightVector = lightSources[i].position
+//					- hit.intersectPoint;
+			Vector pointLightVector = lampPosition - hit.intersectPoint;
 			if (shadowHit.t < 0 || shadowHit.t > pointLightVector.Length()) { // amikor nincsen arnyek
+				pointLightVector.Normalize();
 				outRadiance += hit.material->shade_BRDF(hit.normalVector,
 						-ray.rayDirection, pointLightVector,
 						lightSources[i].getRadiation());
@@ -2067,7 +2153,6 @@ public:
 					hit.intersectPoint + hit.normalVector * (0.001),
 					reflectionDirection);
 			reflectedRay.setTp(hit.tp);
-//			ray.rayDirection=-ray.rayDirection;
 
 			outRadiance += trace(reflectedRay, depth + 1)
 					* hit.material->Fresnel(ray.rayDirection, hit.normalVector);
@@ -2146,25 +2231,34 @@ Scene scene = Scene();
 
 class Timer {
 	long animationTime;
+	bool timing;
 public:
 	Timer() {
 		animationTime = 0;
+		timing = false;
 	}
 
 	void animation() {
-		long actualTime = glutGet(GLUT_ELAPSED_TIME);
+		if (timing) {
+			long actualTime = glutGet(GLUT_ELAPSED_TIME);
 
-		long ellapsedTime = actualTime - animationTime;
-		if (ellapsedTime > 1000) {
+			long ellapsedTime = actualTime - animationTime;
+			if (ellapsedTime > 1000) {
 
-			animationTime = glutGet(GLUT_ELAPSED_TIME);
-			time++;
-//				cout<<time<<endl;
+				animationTime = glutGet(GLUT_ELAPSED_TIME);
+				timer++;
+//				cout << timer << endl;
+			}
 		}
 	}
 
 	void start() {
 		animationTime = glutGet(GLUT_ELAPSED_TIME);
+		timing = true;
+	}
+	void stop() {
+		timing = false;
+//		cout << "stop" << endl;
 	}
 };
 
@@ -2174,42 +2268,43 @@ Timer myTimer = Timer();
 void onInitialization() {
 	glViewport(0, 0, screenWidth, screenHeight);
 
-	Color ks = Color(0.4, 0.4, 0.4);
+	Color ks = Color(0.6, 0.6, 0.6);
 	Color kd = Color(255, 215, 0) / 255;
 	Color k = Color(3.1, 2.7, 1.9);
 	Color k_1 = Color(1.1, 1.7, 0.9);
 	Color n = Color(0.17, 0.35, 1.5);
 	Color k_glass = Color(0, 0, 0);
 	Color n_glass = Color(1.5, 1.5, 1.5);
-	Material *material = new Material(ks, Color(255, 200, 50) / 255, n, k,
-			Color(), 30, true, false);
-	Material *downPlaneMaterial = new Material(ks, Color(205, 127, 50) / 255, n,
+	Material *material = new Material(Color(), Color(255, 200, 50) / 255, n, k,
+			Color(), 50, true, false);
+	Material *downPlaneMaterial = new Material(Color(), Color(205, 127, 50) / 255, n,
 			k, Color(), 50, false, false);
-	Material *downPlaneMaterial2 = new Material(ks, Color(105, 27, 50) / 255, n,
+	Material *downPlaneMaterial2 = new Material(Color(), Color(105, 27, 50) / 255, n,
 			k, Color(), 50, false, false);
-	Material *backPlaneMaterial = new Material(ks, Color(0, 178, 89) / 255, n,
+	Material *backPlaneMaterial = new Material(Color(), Color(0, 178, 89) / 255, n,
 			k, Color(), 50, false, false);
-	Material *backPlaneMaterial2 = new Material(ks, Color(0, 200, 200) / 255, n,
+	Material *backPlaneMaterial2 = new Material(Color(), Color(0, 200, 200) / 255, n,
 			k, Color(), 50, false, false);
-	Material *frontPlaneMaterial = new Material(ks, Color(200, 200, 0) / 255, n,
+	Material *frontPlaneMaterial = new Material(Color(), Color(200, 200, 0) / 255, n,
 			k, Color(), 50, false, false);
-	Material *frontPlaneMaterial2 = new Material(ks, Color(100, 100, 0) / 255,
+	Material *frontPlaneMaterial2 = new Material(Color(), Color(100, 100, 0) / 255,
 			n, k, Color(), 50, false, false);
-	Material *upPlaneMaterial = new Material(ks, Color(200, 0, 0) / 255, n, k,
+	Material *upPlaneMaterial = new Material(Color(), Color(200, 0, 0) / 255, n, k,
 			Color(), 50, false, false);
-	Material *upPlaneMaterial2 = new Material(ks, Color(100, 0, 0) / 255, n, k,
+	Material *upPlaneMaterial2 = new Material(Color(), Color(100, 0, 0) / 255, n, k,
 			Color(), 50, false, false);
-	Material *rightPlaneMaterial = new Material(ks, Color(0, 0, 200) / 255, n,
+	Material *rightPlaneMaterial = new Material(Color(), Color(0, 0, 200) / 255, n,
 			k, Color(), 50, false, false);
-	Material *rightPlaneMaterial2 = new Material(ks, Color(0, 0, 100) / 255, n,
+	Material *rightPlaneMaterial2 = new Material(Color(), Color(0, 0, 100) / 255, n,
 			k, Color(), 50, false, false);
-	Material *leftPlaneMaterial = new Material(ks, Color(0, 220, 0) / 255, n, k,
+	Material *leftPlaneMaterial = new Material(Color(), Color(0, 220, 0) / 255, n, k,
 			Color(), 50, false, false);
-	Material *leftPlaneMaterial2 = new Material(ks, Color(0, 120, 0) / 255, n,
+	Material *leftPlaneMaterial2 = new Material(Color(), Color(0, 120, 0) / 255, n,
 			k, Color(), 50, false, false);
 
-	Material *material_4 = new Material(Color(0, 0, 0), Color(0, 0, 0) / 255,
-			Color(1.5, 1.5, 1.5), Color(), Color(), 30, true, true);
+	Material *material_4 = new Material(Color(0.5, 0.5, 0.5),
+			Color(0, 0, 0) / 255, Color(1.5, 1.5, 1.5), Color(), Color(), 20,
+			true, true);
 //	Sphere implementation----------------------------------------------
 	Sphere *firstSphere = new Sphere(material);
 
@@ -2233,7 +2328,7 @@ void onInitialization() {
 
 	myMatrix tr1 = myMatrix(0.15, 0, 0, 0, 0, 0.25, 0, 0, 0, 0, 0.15, 0, 0, 0,
 			0, 1);
-	myMatrix tr3 = myMatrix(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -0.3, 1);
+	myMatrix tr3 = myMatrix(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0.1, -0.4, 1);
 	myMatrix tr = getTheNewCoordSys(hit);
 
 	Ellipsoid *secondEllipsoid = new Ellipsoid(material);
@@ -2245,7 +2340,7 @@ void onInitialization() {
 	myMatrix newCoordSystem = getTheNewCoordSys(position);
 
 //	Forgatas Rodrigues formulaval--------------------------------------------
-	float fi_rad = (PI / 180) * 35;
+	float fi_rad = (PI / 180) * (35);
 	Vector t = Vector(1, 1, 1);
 	t.Normalize();
 
@@ -2266,7 +2361,7 @@ void onInitialization() {
 
 //--------------------------------------------------------------------
 
-	firstEllipsoid->setTrasformationMatrix(transfom1 * tr3*rotation);
+	firstEllipsoid->setTrasformationMatrix(transfom1 * tr3 * rotation);
 	secondEllipsoid->setTrasformationMatrix(first_connection_matrix);
 
 	myMatrix first_connection_matrix_inv = first_connection_matrix.inverse();
@@ -2341,7 +2436,8 @@ void onInitialization() {
 //	PositionLightSource *light = new PositionLightSource(Vector(-1, 6, 7),
 //			Color(1, 1, 1));
 	PositionLightSource *light = new PositionLightSource(
-			Vector(0.45, 0.45, 0.45), Color(0.5, 0.5, 0.5));
+			Vector(0.45, 0.45, 0.45), Color(0.6, 0.6, 0.6),
+			Vector(-1, 0, -1), 0.04);
 //	PositionLightSource *light = new PositionLightSource(
 //				Vector(-0.4, 0 ,0.3), Color(0.5, 0.5, 0.5));
 
@@ -2352,7 +2448,7 @@ void onInitialization() {
 
 //	MyCamera camera = MyCamera(Vector(2, 2, 5), Vector(0, 0, 0),
 //			Vector(0, 1, 0));
-	MyCamera camera = MyCamera(Vector(0.45, 0, 0), Vector(0, 0, -0.25),
+	MyCamera camera = MyCamera(Vector(0.4, 0, 0), Vector(0, 0, -0.3),
 			Vector(0, 1, 0));
 
 	scene.SetCamera(camera);
@@ -2363,7 +2459,7 @@ void onInitialization() {
 // Rajzolas, ha az alkalmazas ablak ervenytelenne valik, akkor ez a fuggveny hivodik meg
 void onDisplay() {
 //	myTimer.start();
-
+//	scene.render();
 	glClearColor(0.1f, 0.2f, 0.3f, 1.0f);		// torlesi szin beallitasa
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // kepernyo torles
 
@@ -2385,8 +2481,19 @@ void onDisplay() {
 
 // Billentyuzet esemenyeket lekezelo fuggveny (lenyomas)
 void onKeyboard(unsigned char key, int x, int y) {
-	if (key == 'd')
-		glutPostRedisplay(); 		// d beture rajzold ujra a kepet
+//	if (key == ' ') {
+//	//        glutPostRedisplay();         // d beture rajzold ujra a kepet
+////			cout << "Rendering..." << endl;
+////			cout << timer << endl;
+//			myTimer.stop();
+//	        scene.render();
+//	//		world.createWorld();
+//
+//			glDrawPixels(screenWidth, screenHeight, GL_RGB, GL_FLOAT, image);
+//
+//			glutSwapBuffers();
+//
+//		}
 
 }
 
